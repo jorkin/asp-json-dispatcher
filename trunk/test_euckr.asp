@@ -11,7 +11,7 @@ End Sub
 
 Function Test1(result)
   If Request("name") = "" Then
-    result.Add "error", "Type Your Name"
+    result.Add "error", "이름을 적어주세요"
   Else
     result.Add "error", Null
     result.Add "data", "Hello " & Request("name")

@@ -38,8 +38,7 @@ Class JsonEncoder
       Case "Boolean" : Write LCase(value)
       Case "Byte", "Integer", "Long", "Single", "Double", "Currency", "Decimal" : Write value
       'Case "Date" : Write """Date(" : Write DateDiff("s", #1970-01-01#, value) * 1000 : Write ")"""
-      Case "Empty" : Write "undefined"
-      Case "Null", "Nothing" : Write "null"
+      Case "Empty", "Null", "Nothing" : Write "null"
       Case "Variant()"
         Write "["
         For Each item In value
