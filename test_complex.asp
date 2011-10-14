@@ -7,13 +7,13 @@ var ExtJsonEncoder = {
       jsonDispatcher.AddEncoder(key, this[key]);
     }
   }
-, Date: function(encoder, value){
+, "Date": function(encoder, value){
     encoder.Write('"Date(' + new Date(value).getTime() + ')"');
   }
-, DOMDocument: function(encoder, value){
+, "DOMDocument": function(encoder, value){
     encoder.Encode(value.xml);
   }
-, JScriptTypeInfo: function(encoder, value){
+, "JScriptTypeInfo": function(encoder, value){
     if(value.constructor == Date){
       encoder.Write('"Date(' + value.getTime() + ')"');
       return;
@@ -22,9 +22,19 @@ var ExtJsonEncoder = {
       encoder.Write(isNaN(value) ? 'null' : value);
       return;
     }
+    if(value.constructor == Array){
+      encoder.Write('[');
+      for(var i = 0, l = value.length; i < l; i++){
+        if(i > 0) encoder.Write(',');
+        encoder.Encode(value[i]);
+      }
+      encoder.Write(']');
+      return;
+    }
     encoder.Write('{');
     var n = 0;
     for(var key in value){
+      if(typeof(value[key]) == 'function') continue;
       if(n > 0){
         encoder.Write(',');
       } else {
@@ -35,6 +45,25 @@ var ExtJsonEncoder = {
       encoder.Encode(value[key]);
     }
     encoder.Write('}');
+  }
+, "Variant()": function(encoder, value){
+    //For (adodb.recordset).GetRows
+    var vbArr = new VBArray(value), jsArr = vbArr.toArray(), dimensions = vbArr.dimensions();
+    if(dimensions > 1){
+      for(var n = 1; n < dimensions; n++){
+        var length = vbArr.ubound(n) + 1, arr = [], temp = [];
+        for(var i = 0, l = jsArr.length; i < l; i++){
+          if(i >= length && i % length == 0) {
+            arr.push(temp);
+            temp = [];
+          }
+          temp.push(jsArr[i]);
+        }
+        arr.push(temp);
+        jsArr = arr;
+      }
+    }
+    encoder.Encode(jsArr);
   }
 };
 
@@ -54,7 +83,7 @@ Function ComplexTest(result)
       result.Add "type", "Date"
     Case "test2"
       Set xml = Server.CreateObject("msxml.domdocument")
-      xml.LoadXML "<data><str><![CDATA[TEST CDATA SECTION]]></str></data>"
+      xml.LoadXML "<data><str><![CDATA[테스트 TEST]]></str></data>"
       result.Add "data", xml
       result.Add "type", "XML DOMDocument"
       Set xml = Nothing
@@ -76,6 +105,29 @@ Function ComplexTest(result)
       Set jsObject = TestJSObject()
       result.Add "data", jsObject
       result.Add "type", "js object"
+    Case "test6"
+      Set db = Server.CreateObject("adodb.connection")
+      db.Open "Provider=Microsoft.JET.OLEDB.4.0;Data Source=""" & Server.MapPath(".") & """;Extended Properties=""Text;HDR=YES;FMT=Delimited"""
+      Set rs = db.Execute("SELECT Name, Email FROM [dummy_data.csv]")
+      result.RecordsetColumnInfo = True
+      result.Add "columns", rs.Fields
+      result.Add "data", rs
+      result.Add "type", "Recordset"
+      rs.Close
+      db.Close
+      Set rs = Nothing
+      Set db = Nothing
+    Case "test7"
+      Set db = Server.CreateObject("adodb.connection")
+      db.Open "Provider=Microsoft.JET.OLEDB.4.0;Data Source=""" & Server.MapPath(".") & """;Extended Properties=""Text;HDR=YES;FMT=Delimited"""
+      Set rs = db.Execute("SELECT * FROM [dummy_data.csv]")
+      If Not rs.Eof Then arr = rs.GetRows()
+      rs.Close
+      db.Close
+      Set rs = Nothing
+      Set db = Nothing
+      result.Add "data", arr
+      result.Add "type", "Multi-dimensional Array"
     Case Else
       ComplexTest = False
       Exit Function
@@ -118,6 +170,8 @@ Set json = Nothing
           var x = new ActiveXObject('microsoft.xmldom');
           x.loadXML(result.data);
           result.data = x;
+        } else if(window.DOMParser) {
+          result.data = new DOMParser().parseFromString(result.data,'text/xml');
         }
         $('<div>' + $(result.data).find('str').text() + ' <em>' + result.type + '</em></div>').appendTo('#result');
       });
@@ -132,6 +186,18 @@ Set json = Nothing
 
       $.post('test_complex.asp',{mode:'test5'},function(result){
         $('<div>data.random : ' + result.data.random + ', data.date : ' + result.data.date + ', data.number : ' + result.data.number + ' <em>' + result.type + '</em></div>').appendTo('#result');
+      });
+
+      $.post('test_complex.asp',{mode:'test6'},function(result){
+        $('<div>' +
+          $(result.data).map(function(){
+            return '<span>' + this.Name + ' (' + this.Email + ')</span>';
+          }).toArray().join(', ') + ' <em>' + result.type + '</em></div>'
+        ).appendTo('#result');
+      });
+
+      $.post('test_complex.asp',{mode:'test7'},function(result){
+        $('<div>' + result.data + ' <em>' + result.type + '</em></div>').appendTo('#result');
       });
 
     });

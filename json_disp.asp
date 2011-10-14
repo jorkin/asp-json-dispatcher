@@ -4,7 +4,7 @@ Class JsonEncoder
   Public RecordsetColumnInfo
   Sub Class_Initialize()
     n = 0
-    l = 100
+    l = 1024
     ReDim buffer(l)
     RecordsetColumnInfo = False
     Set encoderMap = Server.CreateObject("scripting.dictionary")
@@ -21,20 +21,24 @@ Class JsonEncoder
   Public Sub Write(value)
     n = n + 1
     If n > l Then
-      l = l + 100
+      l = l + 1024
       ReDim Preserve buffer(l)
     End If
     buffer(n) = value
   End Sub
 
   Public Sub Encode(value)
-    Dim n, c, char, key, item, valueType, bFirst : bFirst = True
+    Dim n, c, char, key, item, valueType, bFirst
+    bFirst = True
     valueType = TypeName(value)
     If encoderMap.Exists(valueType) Then
       Call encoderMap(valueType)(Me, value)
       Exit Sub
     End If
     Select Case valueType
+'basic types
+      Case "JsonEncoder"
+        Write value.Json()
       Case "Boolean" : Write LCase(value)
       Case "Byte", "Integer", "Long", "Single", "Double", "Currency", "Decimal" : Write value
       'Case "Date" : Write """Date(" : Write DateDiff("s", #1970-01-01#, value) * 1000 : Write ")"""
@@ -63,6 +67,8 @@ Class JsonEncoder
           Encode value(key)
         Next
         Write "}"
+
+'adodb.recordset
       Case "Recordset"
         c = value.Fields.Count
         Write "["
@@ -76,7 +82,11 @@ Class JsonEncoder
             Write "{"
             For n = 0 To c - 1
               If n > 0 Then Write ","
-              Encode value.Fields(n).Name
+              If value.Fields(n).Name = "" Then
+                Encode "Expr" & i
+              Else
+                Encode value.Fields(n).Name
+              End If
               Write ":"
               Encode value(n).Value
             Next
@@ -91,6 +101,28 @@ Class JsonEncoder
           End If
         value.MoveNext : Loop
         Write "]"
+      Case "Field"
+        Write "{""name"":"
+        Encode value.Name
+        Write ",""definedSize"":"
+        Encode value.DefinedSize
+        Write ",""precision"":"
+        Encode value.Precision
+        Write ",""numericScale"":"
+        Encode value.NumericScale
+        Write ",""type"":"
+        Encode value.Type
+        Write "}"
+      Case "Fields"
+        c = value.Count
+        Write "["
+        For n = 0 To c - 1
+          If n > 0 Then Write ","
+          Encode value(n)
+        Next
+        Write "]"
+
+'filesystem objects
       Case "File"
         Write "{""name"":"
         Encode value.Name
@@ -141,6 +173,8 @@ Class JsonEncoder
         Encode value.DriveLetter & ":"
         Write ",""path"":"
         Encode value.Path
+        Write ",""type"":"
+        Encode value.DriveType
         Write ",""totalSize"":"
         Encode value.TotalSize
         Write ",""availableSpace"":"
@@ -151,13 +185,11 @@ Class JsonEncoder
         Encode value.VolumeName
         Write ",""isReady"":"
         Encode value.IsReady
-        Write ",""driveType"":"
-        Encode value.DriveType
-        Write ",""ShareName"":"
+        Write ",""shareName"":"
         Encode value.ShareName
         Write "}"
-      Case "JsonEncoder"
-        Write value.Json()
+
+'string or type not presented
       Case Else
         Write """"
         For n = 1 To Len(value)
@@ -195,7 +227,7 @@ Class JsonEncoder
 
   Public Sub Clear()
     n = 0
-    l = 100
+    l = 1024
     ReDim buffer(l)
   End Sub
 
