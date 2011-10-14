@@ -1,28 +1,32 @@
 #summary Tutorial page.
 
-= Introduction =
-
-vbscript asp 에서 사용가능한 함수 기반 AJAX 처리기입니다.
-
-
-= Details =
-
 == JsonEncoder ==
   * *Write(value)*
-    결과값 반환을 위한 내부 버퍼에 문자열을 추가합니다
+    결과값 반환을 위한 내부 버퍼에 문자열을 추가
 
   * *Encode(value)*
-    TypeName(value) 에 따라 적절한 JSON 형식으로 변환합니다
+    TypeName(value) 에 따라 JSON 문자열로 변환 후 Write 을 통해 내부 버퍼에 추가
 
   * *Add(key, value)*
-    요청 처리후 반환될 JSON 결과에 key, value Pair를 추가합니다
-     서버 - _result.Add "data", 1_, 클라이언트 - _alert(result.data)_
+    요청 처리후 반환될 JSON 결과에 key, value Pair를 추가
+     서버 - `result.Add "data", 1`
+     클라이언트 - `alert(result.data)`
 
   * *Clear()*
     내부 버퍼를 비웁니다
 
   * *Json()*
     내부버퍼의 문자열을 조합하여, JSON 형식으로 변환된 결과값을 반환합니다
+
+  {{{
+  Set encoder = new JsonEncoder
+  encoder.Add "key1", "value1"
+  encoder.Add "key2", 0.2
+  encoder.Add "key3", Array(1, True, Null)
+  Response.Write encoder.Json()
+
+  => {"key1":"value1","key2":0.2,"key3":[1,true,null]}
+  }}}
 
 == JsonDispatcher ==
   * *Accept(methodName)*
