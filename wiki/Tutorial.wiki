@@ -9,8 +9,6 @@
 
   * *Add(key, value)*
     요청 처리후 반환될 JSON 결과에 key, value Pair를 추가
-     서버 - `result.Add "data", 1`
-     클라이언트 - `alert(result.data)`
 
   * *Clear()*
     내부 버퍼를 비웁니다
