@@ -1,4 +1,6 @@
-﻿<!--#include file="json_disp.asp"-->
+﻿<% Option Explicit %>
+<!--#include file="JsonEncoder.asp"-->
+<!--#include file="JsonDispatcher.asp"-->
 <script language="jscript" runat="server">
 var ExtJsonEncoder = {
   init: function(jsonDispatcher){
@@ -72,11 +74,13 @@ function TestJSObject(){
   o.random = Math.random();
   o.date = new Date();
   o.number = new Number("NaN number");
+  o.text = "some \"test\" text\r\n from js object";
   return o;
 }
 </script>
 <%
 Function ComplexTest(result)
+  Dim db, rs, xml, dic, jsObject, arr
   Select Case Request("mode")
     Case "test1"
       result.Add "data", Now
@@ -96,10 +100,7 @@ Function ComplexTest(result)
       result.Add "type", "Dictionary"
     Case "test4"
       result.Add "data", Array("A", 0.5, False)
-      Set json2 = new JsonEncoder
-      json2.Add "data", Array("B", 1, True, Array("C", 100))
-      result.Add "nested", json2
-      Set json2 = Nothing
+      result.Add "nested", Array("B", 1, True, Array("C", 100))
       result.Add "type", "Array And Nested Array"
     Case "test5"
       Set jsObject = TestJSObject()
@@ -109,7 +110,7 @@ Function ComplexTest(result)
       Set db = Server.CreateObject("adodb.connection")
       db.Open "Provider=Microsoft.JET.OLEDB.4.0;Data Source=""" & Server.MapPath(".") & """;Extended Properties=""Text;HDR=YES;FMT=Delimited"""
       Set rs = db.Execute("SELECT Name, Email FROM [dummy_data.csv]")
-      result.RecordsetColumnInfo = True
+      result.Encoder.RecordsetColumnInfo = True
       result.Add "columns", rs.Fields
       result.Add "data", rs
       result.Add "type", "Recordset"
@@ -135,11 +136,9 @@ Function ComplexTest(result)
   ComplexTest = True
 End Function
 
-Set json = new JsonDispatcher
-ExtJsonEncoder.init json
+ExtJsonEncoder.init JsonDispatcher
 
-Call json.AcceptParam("ComplexTest", "mode")
-Set json = Nothing
+Call JsonDispatcher.AcceptParam(GetRef("ComplexTest"), "mode")
 %>
 <!doctype html>
 <html lang="ko">
@@ -185,7 +184,7 @@ Set json = Nothing
       });
 
       $.post('test_complex.asp',{mode:'test5'},function(result){
-        $('<div>data.random : ' + result.data.random + ', data.date : ' + result.data.date + ', data.number : ' + result.data.number + ' <em>' + result.type + '</em></div>').appendTo('#result');
+        $('<div>data.random : ' + result.data.random + ', data.date : ' + result.data.date + ', data.number : ' + result.data.number + ', data.text : ' + result.data.text + ' <em>' + result.type + '</em></div>').appendTo('#result');
       });
 
       $.post('test_complex.asp',{mode:'test6'},function(result){

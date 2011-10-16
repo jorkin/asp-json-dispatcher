@@ -38,7 +38,7 @@ Class JsonEncoder
     Select Case valueType
 'basic types
       Case "JsonEncoder"
-        Write value.Json()
+        Write value.Result
       Case "Boolean" : Write LCase(value)
       Case "Byte", "Integer", "Long", "Single", "Double", "Currency", "Decimal" : Write value
       'Case "Date" : Write """Date(" : Write DateDiff("s", #1970-01-01#, value) * 1000 : Write ")"""
@@ -204,9 +204,15 @@ Class JsonEncoder
             Write "\n"
           ElseIf c = vbTab Then
             Write "\t"
+          ElseIf c = vbFormFeed Then
+            Write "\f"
+          ElseIf c = "/" Then
+            Write "\/"
           Else
             char = AscW(c) And &HFFFF
-            If char > &H00FF Or char < &H0020 Then
+            If char = &H0008 Then
+              Write "\b"
+            ElseIf char > &H00FF Or char < &H0020 Then
               Write "\u"
               Write Right("0000" & Hex(char), 4)
             Else
@@ -218,119 +224,14 @@ Class JsonEncoder
     End Select
   End Sub
 
-  Public Sub Add(key, value)
-    If n > 0 Then Write ","
-    Encode Key
-    Write ":"
-    Encode value
-  End Sub
-
   Public Sub Clear()
     n = 0
     l = 1024
     ReDim buffer(l)
   End Sub
 
-  Public Function Json()
-    Json = "{" & Join(buffer, "") & "}"
-  End Function
-End Class
-
-Class JsonDispatcher
-  Dim acceptType, jsonCodePage, currentCodePage, jsonReturn
-  Sub Class_Initialize()
-    Set jsonReturn = new JsonEncoder
-    jsonCodePage = 65001
-    currentCodePage = Session.CodePage
-  End Sub
-
-  Sub Class_Terminate()
-    Set jsonReturn = Nothing
-  End Sub
-
-  Public Sub AddEncoder(valueTypeName, encoder)
-    jsonReturn.AddEncoder valueTypeName, encoder
-  End Sub
-
-  Public Sub AcceptParam(methodName, paramName)
-    Session.CodePage = jsonCodePage
-    If Request(paramName).Count = 0 Then
-      Session.CodePage = currentCodePage
-      Exit Sub
-    End If
-    Session.CodePage = currentCodePage
-    Call Accept(methodName)
-  End Sub
-
-  Public Sub AcceptParamValue(methodName, paramName, paramValue)
-    Dim n, bFound : bFound = False
-    Session.CodePage = jsonCodePage
-    If Request(paramName).Count = 0 Then
-      Session.CodePage = currentCodePage
-      Exit Sub
-    End If
-    For n = 1 To Request(paramName).Count
-      If Request(paramName)(n) = paramValue Then
-        bFound = True
-        Exit For
-      End If
-    Next
-    Session.CodePage = currentCodePage
-    If bFound Then
-      Call Accept(methodName)
-    End If
-  End Sub
-
-  Public Sub AcceptForm(methodName, paramName)
-    Session.CodePage = jsonCodePage
-    If Request.Form(paramName).Count = 0 Then
-      Session.CodePage = currentCodePage
-      Exit Sub
-    End If
-    Session.CodePage = currentCodePage
-    Call Accept(methodName)
-  End Sub
-
-  Public Sub AcceptFormValue(methodName, paramName, paramValue)
-    Dim n, bFound : bFound = False
-    Session.CodePage = jsonCodePage
-    If Request.Form(paramName).Count = 0 Then
-      Session.CodePage = currentCodePage
-      Exit Sub
-    End If
-    For n = 1 To Request.Form(paramName).Count
-      If Request.Form(paramName)(n) = paramValue Then
-        bFound = True
-        Exit For
-      End If
-    Next
-    Session.CodePage = currentCodePage
-    If bFound Then
-      Call Accept(methodName)
-    End If
-  End Sub
-
-  Public Sub Accept(methodName)
-    On Error Resume Next
-    Dim retVal, errNum, errSource, errDesc
-    Session.CodePage = jsonCodePage
-    retVal = GetRef(methodName)(jsonReturn)
-    Session.CodePage = currentCodePage
-    If Err.number <> 0 Then
-      errNum = Err.number
-      errSource = Err.Source
-      errDesc = Err.Description
-      Err.Clear
-      On Error Goto 0
-      Err.Raise errNum, errSource, errDesc & " - Err Raised While JsonDispatcher.Accept(" & methodName & ")"
-    End If
-    If Not retVal Then
-      Exit Sub
-    End If
-
-    Response.ContentType = "application/json"
-    Response.Write jsonReturn.Json()
-    Response.End
-  End Sub
+  Public Property Get Result()
+    Result = Join(buffer, "")
+  End Property
 End Class
 %>
