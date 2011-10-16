@@ -1,4 +1,6 @@
-<!--#include file="json_disp.asp"-->
+<% Option Explicit %>
+<!--#include file="JsonEncoder.asp"-->
+<!--#include file="JsonDispatcher.asp"-->
 <%
 Sub EncodeFileSystemObjectSimple(result, value)
   result.Write "{"
@@ -27,8 +29,9 @@ Function Test2(result)
   If path = "" Then path = Server.MapPath("/")
 
   'add new external encoder
-  result.AddEncoder "Folder", GetRef("EncodeFileSystemObjectSimple")
-
+  result.Encoder.AddEncoder "Folder", GetRef("EncodeFileSystemObjectSimple")
+  
+  Dim fso, folder
   Set fso = Server.CreateObject("scripting.filesystemobject")
   If fso.DriveExists(path) Then
     Set folder = fso.GetDrive(path).RootFolder
@@ -51,11 +54,9 @@ Function AjaxTest1(result)
   AjaxTest1 = True
 End Function
 
-Set json = new JsonDispatcher
-Call json.AcceptParam("Test1", "name")
-Call json.AcceptForm("Test2", "path")
-Call json.AcceptParamValue("AjaxTest1", "mode", "test1")
-Set json = Nothing
+Call JsonDispatcher.AcceptParam(GetRef("Test1"), "name")
+Call JsonDispatcher.AcceptForm(GetRef("Test2"), "path")
+Call JsonDispatcher.AcceptParamValue(GetRef("AjaxTest1"), "mode", "test1")
 %>
 <!doctype html>
 <html lang="ko">
@@ -117,7 +118,7 @@ Set json = Nothing
   .folder{cursor:pointer;}
   .folder:hover{background:blue;color:#fff;}
   .file em{margin-left:20px;color:#777;}
-  xmp{font-size:10pt;font-family:Lucida Console,consolas;}
+  div.code{white-space:pre;font-size:10pt;font-family:Consolas,Lucida Console;}
   dt{font-weight:bold;}
   </style>
 </head>
@@ -125,7 +126,10 @@ Set json = Nothing
   <h1>예제</h1>
   <fieldset>
     <legend>server.asp</legend>
-    <xmp>
+    <div class="code">
+    &lt;!--#include file="JsonEncoder.asp"-->
+    &lt;!--#include file="JsonDispatcher.asp"-->
+    &lt;%
     Function AjaxTest1(result)
       result.Add "ip", Request.ServerVariables("REMOTE_ADDR")
       result.Add "data", Array(1, "문자열", NOW)
@@ -133,14 +137,14 @@ Set json = Nothing
       AjaxTest1 = True
     End Function
     
-    Set json = new JsonDispatcher
-    Call json.AcceptParamValue("AjaxTest1", "mode", "test1")
-    </xmp>
+    Call JsonDispatcher.AcceptParamValue(GetRef("AjaxTest1"), "mode", "test1")
+    %&gt;
+    </div>
   </fieldset>
   <fieldset>
     <legend>client-jquery.htm</legend>
-    <xmp>
-    <script type="text/javascript">
+    <div class="code">
+    &lt;script type="text/javascript">
     $(function(){
       $('#ajaxtest').click(function(){
         $.post('server.asp',{mode:'test1'},function(result){
@@ -149,9 +153,9 @@ Set json = Nothing
         },'json');
       });
     });
-    </script>
-    <button type="button" id="ajaxtest">test1</button>
-    </xmp>
+    &lt;/script>
+    &lt;button type="button" id="ajaxtest">test1&lt;/button>
+    </div>
   </fieldset>
   <h1>데모</h1>
   <button type="button" id="ajaxtest">예제 실행</button><br>
