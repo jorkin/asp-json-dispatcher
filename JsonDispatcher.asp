@@ -123,11 +123,11 @@ Class JsonDispatcherClass
   End Sub
 
   Public Sub Accept(method)
-    Dim retVal, errNum, errSource, errDesc, dummy
+    Dim retVal, dummy
     If TypeName(method) = "String" Then Set method = GetRef(method)
     Session.CodePage = jsonCodePage
     dummy = Request("dummy for codepage conversion")
-    Session.CodePage = Session.CodePage = currentCodePage
+    Session.CodePage = currentCodePage
     retVal = method(jsonResult)
     If Not retVal Then
       Exit Sub
