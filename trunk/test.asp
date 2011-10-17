@@ -57,7 +57,6 @@ End Function
 Call JsonDispatcher.AcceptParam(GetRef("Test1"), "name")
 Call JsonDispatcher.AcceptForm(GetRef("Test2"), "path")
 Call JsonDispatcher.AcceptParamValue(GetRef("AjaxTest1"), "mode", "test1")
-Set JsonDispatcher = Nothing
 %>
 <!doctype html>
 <html lang="en">

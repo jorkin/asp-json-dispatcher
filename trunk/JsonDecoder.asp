@@ -94,7 +94,7 @@ Class JsonDecoder
     ElseIf c = "f" Then
       c = ReadChars(5)
     Else
-      Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting true or false"
+      Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting boolean,null or number"
     End If
 
     If c = "true" Then
@@ -102,7 +102,7 @@ Class JsonDecoder
     ElseIf c = "false" Then
       ReadBoolean = False
     Else
-      Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting true or false"
+      Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting boolean,null or number"
     End If
   End Function
 
@@ -113,7 +113,7 @@ Class JsonDecoder
     If c = "null" Then
       ReadNull = Null
     Else
-      Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting null"
+      Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting boolean,null or number"
     End If
   End Function
 
@@ -227,6 +227,12 @@ Class JsonDecoder
     textPos = 0
     j_flag = J_NONE
     
+    If textLen = 0 Then
+      ReDim arr(-1)
+      DecodeArray = arr
+      Exit Function
+    End If
+    
     Dim c, arrLen, decoder, temp
     arrLen = -1
     Do While textPos < textLen
@@ -257,7 +263,7 @@ Class JsonDecoder
             arrLen = arrLen + 1
             arr(arrLen) = ReadString()
             j_flag = J_VALUE
-          Case "e", "E", "+", "-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+          Case "-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
             arrLen = arrLen + 1
             arr(arrLen) = ReadNumber()
             j_flag = J_VALUE
@@ -270,7 +276,7 @@ Class JsonDecoder
             arr(arrLen) = ReadNull()
             j_flag = J_VALUE
           Case Else
-            Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting [,\:\""\{\[]"
+            Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting [\+,\:\""\{\[]"
         End Select
       End If
     Loop
@@ -280,16 +286,22 @@ Class JsonDecoder
   End Function
 
   Public Function DecodeMap(value)
-    Dim map, j_flag, J_NONE, J_KEY, J_VALUE
+    Dim map, j_flag, J_KEY, J_VALUE, J_PAIR, J_NONE
     Set map = Server.CreateObject("scripting.dictionary")
     J_NONE = 0
     J_KEY = 1
     J_VALUE = 2
-    j_flag = J_NONE
+    J_PAIR = 3
+    j_flag = J_KEY
     Call ClearBuffer()
     text = Trim2(value)
     textLen = Len(text)
     textPos = 0
+    
+    If textLen = 0 Then
+      Set DecodeMap = map
+      Exit Function
+    End If
 
     Dim c, lastKey, lastValue, decoder, temp
 
@@ -301,8 +313,13 @@ Class JsonDecoder
           If j_flag = J_VALUE Then
             temp = ReadBlock("{", "}")
             Set decoder = new JsonDecoder
-            map.Add lastKey, decoder.DecodeMap(temp)
+            If map.Exists(lastKey) Then
+              map(lastKey) = decoder.DecodeMap(temp)
+            Else
+              map.Add lastKey, decoder.DecodeMap(temp)
+            End If
             Set decoder = Nothing
+            j_flag = J_NONE
           Else
             Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting ':'"
           End If
@@ -310,46 +327,73 @@ Class JsonDecoder
           If j_flag = J_VALUE Then
             temp = ReadBlock("[", "]")
             Set decoder = new JsonDecoder
-            map.Add lastKey, decoder.DecodeArray(temp)
+            If map.Exists(lastKey) Then
+              map(lastKey) = decoder.DecodeArray(temp)
+            Else
+              map.Add lastKey, decoder.DecodeArray(temp)
+            End If
             Set decoder = Nothing
+            j_flag = J_NONE
           Else
             Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting ':'"
           End If
         Case """"
-          If j_flag = J_NONE Then
+          If j_flag = J_KEY Then
             lastKey = ReadString()
-            j_flag = J_KEY
+            j_flag = J_PAIR
           ElseIf j_flag = J_VALUE Then
             lastValue = ReadString()
-            map.Add lastKey, lastValue
+            If map.Exists(lastKey) Then
+              map(lastKey) = lastValue
+            Else
+              map.Add lastKey, lastValue
+            End If
+            j_flag = J_NONE
+          Else
+            Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting [^\""]"
           End If
         Case ":"
-          If j_flag = J_KEY Then
+          If j_flag = J_PAIR Then
             j_flag = J_VALUE
           Else
             Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting [^:]"
           End If
         Case ","
-          If j_flag = J_VALUE Then
-            j_flag = J_NONE
+          If j_flag = J_NONE Then
+            j_flag = J_KEY
           Else
             Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting [^,]"
           End If
-        Case "e", "E", "+", "-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+        Case "-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
           If j_flag = J_VALUE Then
-            map.Add lastKey, ReadNumber()
+            If map.Exists(lastKey) Then
+              map(lastKey) = ReadNumber()
+            Else
+              map.Add lastKey, ReadNumber()
+            End If
+            j_flag = J_NONE
           Else
-            Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting [^+\-eE0-9]"
+            Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting [0-9\-]"
           End If
         Case "t", "f"
           If j_flag = J_VALUE Then
-            map.Add lastKey, ReadBoolean()
+            If map.Exists(lastKey) Then
+             map(lastKey) = ReadBoolean()
+            Else
+              map.Add lastKey, ReadBoolean()
+            End If
+            j_flag = J_NONE
           Else
             Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting '""'"
           End If
         Case "n"
           If j_flag = J_VALUE Then
-            map.Add lastKey, ReadNull()
+            If map.Exists(lastKey) Then
+              map(lastKey) = ReadNull()
+            Else
+              map.Add lastKey, ReadNull()
+            End If
+            j_flag = J_NONE
           Else
             Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting '""'"
           End If
@@ -359,6 +403,13 @@ Class JsonDecoder
           Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting [,\:\""\{\[]"
       End Select
     Loop
+    If j_flag = J_KEY Then
+      Err.Raise 1002, "JsonDecoder", text & " <= Expecting {key}"
+    ElseIf j_flag = J_PAIR Then
+      Err.Raise 1002, "JsonDecoder", text & " <= Expecting :"
+    ElseIf j_flag = J_VALUE Then
+      Err.Raise 1002, "JsonDecoder", text & " <= Expecting {value}"
+    End If
     If c = "," Then Err.Raise 1002, "JsonDecoder", text & " <= Expecting [^,]"
     Set DecodeMap = map
   End Function
