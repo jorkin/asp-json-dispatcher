@@ -48,6 +48,8 @@ Class JsonDecoder
           Case Else
             Call AddBuffer("\" & c)
         End Select
+      ElseIf c = vbCr Or c = vbLf Then
+        Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting [^\r\n]"
       ElseIf c = """" Then
         Exit Do
       Else
