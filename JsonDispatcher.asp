@@ -3,6 +3,11 @@
 
 Class JsonResultClass
   Private enc, buffer(), n, l
+  
+  Public Property Get Version()
+    Version = "0.1.0"
+  End Property
+  
   Sub Class_Initialize()
     Call Clear()
     Set enc = new JsonEncoder
@@ -55,6 +60,22 @@ Class JsonDispatcherClass
     jsonCodePage = 65001
     currentCodePage = Session.CodePage
   End Sub
+  
+  Public Property Let CodePage(value)
+    jsonCodePage = value
+  End Property
+  
+  Public Property Get CodePage()
+    CodePage = jsonCodePage
+  End Property
+  
+  Private Sub changeCodePage()
+    If jsonCodePage <> currentCodePage Then Session.CodePage = jsonCodePage
+  End Sub
+  
+  Private Sub restoreCodePage()
+    If jsonCodePage <> currentCodePage Then Session.CodePage = currentCodePage
+  End Sub
 
   Sub Class_Terminate()
     Set jsonResult = Nothing
@@ -65,20 +86,20 @@ Class JsonDispatcherClass
   End Sub
 
   Public Sub AcceptParam(method, paramName)
-    Session.CodePage = jsonCodePage
+    changeCodePage
     If Request(paramName).Count = 0 Then
-      Session.CodePage = currentCodePage
+      restoreCodePage
       Exit Sub
     End If
-    Session.CodePage = currentCodePage
+    restoreCodePage
     Call Accept(method)
   End Sub
 
   Public Sub AcceptParamValue(method, paramName, paramValue)
     Dim n, bFound : bFound = False
-    Session.CodePage = jsonCodePage
+    changeCodePage
     If Request(paramName).Count = 0 Then
-      Session.CodePage = currentCodePage
+      restoreCodePage
       Exit Sub
     End If
     For n = 1 To Request(paramName).Count
@@ -87,27 +108,27 @@ Class JsonDispatcherClass
         Exit For
       End If
     Next
-    Session.CodePage = currentCodePage
+    restoreCodePage
     If bFound Then
       Call Accept(method)
     End If
   End Sub
 
   Public Sub AcceptForm(method, paramName)
-    Session.CodePage = jsonCodePage
+    changeCodePage
     If Request.Form(paramName).Count = 0 Then
-      Session.CodePage = currentCodePage
+      restoreCodePage
       Exit Sub
     End If
-    Session.CodePage = currentCodePage
+    restoreCodePage
     Call Accept(method)
   End Sub
 
   Public Sub AcceptFormValue(method, paramName, paramValue)
     Dim n, bFound : bFound = False
-    Session.CodePage = jsonCodePage
+    changeCodePage
     If Request.Form(paramName).Count = 0 Then
-      Session.CodePage = currentCodePage
+      restoreCodePage
       Exit Sub
     End If
     For n = 1 To Request.Form(paramName).Count
@@ -116,7 +137,7 @@ Class JsonDispatcherClass
         Exit For
       End If
     Next
-    Session.CodePage = currentCodePage
+    restoreCodePage
     If bFound Then
       Call Accept(method)
     End If
@@ -125,14 +146,15 @@ Class JsonDispatcherClass
   Public Sub Accept(method)
     Dim retVal, dummy
     If TypeName(method) = "String" Then Set method = GetRef(method)
-    Session.CodePage = jsonCodePage
-    dummy = Request("dummy for codepage conversion")
-    Session.CodePage = currentCodePage
+    changeCodePage
+    dummy = Request("dummy_for_codepage_conversion")
+    restoreCodePage
     retVal = method(jsonResult)
     If Not retVal Then
       Exit Sub
     End If
 
+    Response.Clear
     Response.ContentType = "application/json"
     Response.Write jsonResult.Result
     Response.End

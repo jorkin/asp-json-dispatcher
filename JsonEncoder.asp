@@ -2,6 +2,11 @@
 Class JsonEncoder
   Private buffer(), n, l, encoderMap
   Public RecordsetColumnInfo
+  
+  Public Property Get Version()
+    Version = "0.1.0"
+  End Property
+  
   Sub Class_Initialize()
     n = 0
     l = 1024

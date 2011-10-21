@@ -2,6 +2,8 @@
 <!--#include file="JsonEncoder.asp"-->
 <!--#include file="JsonDispatcher.asp"-->
 <%
+Session.CodePage = 949
+
 Sub EncodeFileSystemObjectSimple(result, value)
   result.Write "{"
   result.Write """name"":"
@@ -54,6 +56,7 @@ Function AjaxTest1(result)
   AjaxTest1 = True
 End Function
 
+JsonDispatcher.CodePage = 65001
 Call JsonDispatcher.AcceptParam(GetRef("Test1"), "name")
 Call JsonDispatcher.AcceptForm(GetRef("Test2"), "path")
 Call JsonDispatcher.AcceptParamValue(GetRef("AjaxTest1"), "mode", "test1")

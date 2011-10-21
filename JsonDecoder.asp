@@ -1,6 +1,11 @@
 <%
 Class JsonDecoder
   Private buffer(), bufferPos, bufferLen, text, textPos, textLen, trimReg
+  
+  Public Property Get Version()
+    Version = "0.1.0"
+  End Property
+  
   Sub Class_Initialize()
     Set trimReg = new RegExp
     trimReg.Pattern = "^\s+|\s+$"
