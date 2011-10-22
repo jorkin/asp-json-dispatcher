@@ -3,7 +3,7 @@ Class JsonDecoder
   Private buffer(), bufferPos, bufferLen, text, textPos, textLen, trimReg
   
   Public Property Get Version()
-    Version = "0.1.0"
+    Version = "0.1.1"
   End Property
   
   Sub Class_Initialize()
@@ -50,6 +50,8 @@ Class JsonDecoder
               Err.Raise 1002, "JsonDecoder", Left(text, textPos) & " <= Expecting \u[0-9a-fA-F]{4}"
             End If
             Call AddBuffer(ChrW(CLng("&H" & Right(c, 4))))
+          Case "\"
+            Call AddBuffer("\")
           Case Else
             Call AddBuffer("\" & c)
         End Select
@@ -385,7 +387,7 @@ Class JsonDecoder
         Case "t", "f"
           If j_flag = J_VALUE Then
             If map.Exists(lastKey) Then
-             map(lastKey) = ReadBoolean()
+              map(lastKey) = ReadBoolean()
             Else
               map.Add lastKey, ReadBoolean()
             End If
